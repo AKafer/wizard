@@ -20,3 +20,8 @@ Thumbs.db
 
 # uv cache (обычно не нужно коммитить)
 .uv/
+
+
+.env
+/src/static/
+/src/logs/
