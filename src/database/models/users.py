@@ -3,7 +3,7 @@ from fastapi import Depends
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
 from sqlalchemy import String, Boolean
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import expression
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.types import DateTime
@@ -40,6 +40,15 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     date_of_birth: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=True)
+    gender: Mapped[str] = mapped_column(String(length=32), nullable=True)
+
+    certificates = relationship(
+        'Certificates',
+        back_populates='user',
+        lazy='selectin',
+        cascade='all, delete, delete-orphan',
+        single_parent=True,
+    )
 
 
     @property
