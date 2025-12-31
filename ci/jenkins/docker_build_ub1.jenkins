@@ -1,0 +1,59 @@
+#!groovy
+// Run docker build
+properties([disableConcurrentBuilds()])
+
+pipeline {
+    agent any
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))
+        timestamps()
+    }
+    stages {
+        stage("docker login") {
+            steps {
+                echo " ============== docker login =================="
+                withCredentials([usernamePassword(credentialsId: 'dockerhub_akafer', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    sh """
+                    docker login -u $USERNAME -p $PASSWORD
+                    """
+                }
+            }
+        }
+        stage("update docker backend image") {
+            steps {
+                echo " ============== start building backend image =================="
+                timeout(time: 10, unit: 'MINUTES') {
+                    dir ('.') {
+                	    sh 'docker build -t akafer/wizard -f  ./ci/Dockerfile .'
+                    }
+                }
+            }
+        }
+        stage("docker push") {
+            steps {
+                echo " ============== start pushing images =================="
+                timeout(time: 10, unit: 'MINUTES') {
+                    sh '''
+                    docker push akafer/wizard
+                    '''
+                }
+            }
+        }
+        stage("copy docker_compose file") {
+            steps {
+                echo " ============== copy files =================="
+                dir ('./ci') {
+                    sh '''
+                    scp docker-compose.yaml root@ub1:/root/app/WIZARD/docker-compose.yaml
+                    '''
+                }
+            }
+        }
+        stage("renew server") {
+            steps {
+                echo " ============== go to server =================="
+                sh 'ssh root@ub1 "cd /root/app/WIZARD && docker-compose down --remove-orphans && docker pull akafer/wizard  && docker-compose up -d"'
+            }
+        }
+    }
+}
