@@ -13,7 +13,7 @@ from web.users.schemas import UserCreate
 from web.users.users import get_user_manager
 
 logging_config.dictConfig(settings.LOGGING)
-logger = logging.getLogger('control')
+logger = logging.getLogger('wizard')
 
 
 get_async_session_context = contextlib.asynccontextmanager(get_db_session)

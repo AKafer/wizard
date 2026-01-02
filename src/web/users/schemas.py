@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, date, time
+from datetime import date, datetime, time
 
 from fastapi_users import schemas
-from pydantic import EmailStr, Field, BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class Certificate(BaseModel):
@@ -18,7 +18,7 @@ class Certificate(BaseModel):
     indefinite: bool
     period: int | None
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class UserRead(schemas.BaseUser[uuid.UUID]):
@@ -36,7 +36,6 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     date_of_birth: datetime | None
     gender: str | None = None
     certificates: list[Certificate]
-
 
 
 class CustomDateTime:
@@ -77,7 +76,7 @@ class CustomDateTime:
             type='string',
             format='date-time',
             description=(
-                "A datetime string in ISO format. Date-only strings in 'YYYY-MM-DD' format "
+                'A datetime string in ISO format. Date-only strings in "YYYY-MM-DD" format '
                 'are also accepted; in that case, the time defaults to 00:00:00.'
             ),
         )
@@ -96,7 +95,6 @@ class UserCreate(schemas.BaseUserCreate):
     is_superuser: bool = Field(False, exclude=True)
     date_of_birth: date | None = None
     gender: str | None = None
-
 
 
 class UserUpdate(schemas.BaseUserUpdate):

@@ -17,7 +17,7 @@ services:
     networks:
       - wizard
     ports:
-      - "5433:5432"
+      - "5432:5432"
 
   redis:
     container_name: wizard_redis
@@ -45,7 +45,7 @@ services:
       && python3 /app/src/scripts/create_user.py
       && python3 /app/src/run.py --port=8800"
     env_file:
-      - .env
+      - ./.env
     volumes:
         - ./logs:/app/src/logs
     depends_on:

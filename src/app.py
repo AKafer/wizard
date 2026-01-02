@@ -14,7 +14,7 @@ from core.simple_cache import Cache
 from routers import api_v1_router
 from scripts.status_checker import daily_job
 
-logger = logging.getLogger('control')
+logger = logging.getLogger('wizard')
 
 
 def setup_routes(app: FastAPI):

@@ -4,16 +4,23 @@ from fastapi_filter import FilterDepends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-from starlette.requests import Request
 
-from core.helpers import is_cert_expired
 from database.models.certificates import Certificates, Type
 from dependencies import get_db_session
 from main_schemas import ResponseErrorBody
 from web.certificates.filters import CertFilter
-from web.certificates.schemas import Certificate, CertificateCreate, CertificateAmount, CertificateUpdate
-from web.certificates.services import update_cert_in_db, ErrorSaveToDatabase, set_actual_status
-from web.users.users import current_superuser, current_user, fastapi_users
+from web.certificates.schemas import (
+    Certificate,
+    CertificateAmount,
+    CertificateCreate,
+    CertificateUpdate,
+)
+from web.certificates.services import (
+    ErrorSaveToDatabase,
+    set_actual_status,
+    update_cert_in_db,
+)
+from web.users.users import current_superuser, fastapi_users
 
 router = APIRouter(prefix='/certificates', tags=['certificates'])
 
@@ -33,7 +40,7 @@ async def get_all_certificates(
     query = select(Certificates)
     query = cert_filter.filter(query)
     result = await db_session.execute(query)
-    certs =  result.scalars().all()
+    certs = result.scalars().all()
     for cert in certs:
         set_actual_status(cert)
     await db_session.commit()
@@ -56,7 +63,6 @@ async def get_cert_by_id(
     cert_id: str,
     user=Depends(current_user_optional),
     db_session: AsyncSession = Depends(get_db_session),
-
 ):
     query = select(Certificates).filter(Certificates.id == cert_id)
     cert = await db_session.scalar(query)
@@ -69,10 +75,12 @@ async def get_cert_by_id(
     set_actual_status(cert)
     await db_session.commit()
 
-    if not user or not getattr(user, "is_superuser", False):
-        cert.user.phone_number = "*********" + (cert.user.phone_number or "")[-3:]
-        cert.user.name = cert.user.name[0] + "******"
-        cert.user.last_name = cert.user.last_name[0] + "******"
+    if not user or not getattr(user, 'is_superuser', False):
+        cert.user.phone_number = (
+            '*********' + (cert.user.phone_number or '')[-3:]
+        )
+        cert.user.name = cert.user.name[0] + '******'
+        cert.user.last_name = cert.user.last_name[0] + '******'
     return cert
 
 
@@ -131,9 +139,7 @@ async def update_certificate(
             detail=f'Certificate with id {cert_id} not found',
         )
     try:
-        db_cert = await update_cert_in_db(
-            cert, **update_dict
-        )
+        db_cert = await update_cert_in_db(cert, **update_dict)
         set_actual_status(db_cert)
         await db_session.commit()
         await db_session.refresh(db_cert)
@@ -178,7 +184,7 @@ async def charge_certificate(
             detail=f'Only ACTIVE certificates can be charged. Current status: {cert.status}',
         )
 
-    actual_amount = max(0, cert.amount - charge_sum)
+    actual_amount = max(0, int(cert.amount - charge_sum))
     cert.amount = actual_amount
     set_actual_status(cert)
     await db_session.commit()

@@ -1,34 +1,40 @@
-import uuid
 import logging
-from typing import Optional, Dict, Any, Union, List
+import uuid
+from typing import Any, Dict, List, Optional, Union
 
 import sqlalchemy
-from fastapi import Depends, Request, Response, HTTPException
+from fastapi import Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, models, exceptions
+from fastapi_users import (
+    BaseUserManager,
+    FastAPIUsers,
+    UUIDIDMixin,
+    exceptions,
+    models,
+)
 from fastapi_users.authentication import (
     AuthenticationBackend,
     BearerTransport,
     JWTStrategy,
 )
-from fastapi_users.jwt import generate_jwt, decode_jwt
 from fastapi_users.db import SQLAlchemyUserDatabase
-from sqlalchemy import select, func
+from fastapi_users.jwt import decode_jwt, generate_jwt
+from sqlalchemy import func, select
 
 import settings
 from database.models.users import User, get_user_db
 from database.session import Session
 from web.users.schemas import UserCreate
 
-logger = logging.getLogger("control")
+logger = logging.getLogger('wizard')
 
 SECRET = settings.SECRET_KEY
 
-ACCESS_TTL  = 60 * 60
+ACCESS_TTL = 60 * 60
 REFRESH_TTL = 60 * 60 * 24 * 14
 
-AUDIENCE: List[str] = ["fastapi-users:auth"]
-ALGORITHM = "HS256"
+AUDIENCE: List[str] = ['fastapi-users:auth']
+ALGORITHM = 'HS256'
 
 
 class JWTDecodeError(Exception):
@@ -37,19 +43,14 @@ class JWTDecodeError(Exception):
 
 def build_refresh_token(user: models.UP) -> str:
     payload = {
-        "sub": str(user.id),
-        "aud": AUDIENCE,
-        "type": "refresh",
+        'sub': str(user.id),
+        'aud': AUDIENCE,
+        'type': 'refresh',
     }
-    return generate_jwt(
-        payload,
-        SECRET,
-        REFRESH_TTL,
-        algorithm=ALGORITHM
-    )
+    return generate_jwt(payload, SECRET, REFRESH_TTL, algorithm=ALGORITHM)
 
 
-async def verify_refresh(token: str, user_manager: "UserManager") -> User:
+async def verify_refresh(token: str, user_manager: 'UserManager') -> User:
     try:
         data = decode_jwt(
             token,
@@ -57,27 +58,26 @@ async def verify_refresh(token: str, user_manager: "UserManager") -> User:
             algorithms=[ALGORITHM],
             audience=AUDIENCE,
         )
-        if data.get("type") != "refresh":
-            raise JWTDecodeError("Not refresh token")
+        if data.get('type') != 'refresh':
+            raise JWTDecodeError('Not refresh token')
 
-        user_id = uuid.UUID(str(data["sub"]))
+        user_id = uuid.UUID(str(data['sub']))
     except (JWTDecodeError, ValueError, KeyError):
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        raise HTTPException(status_code=401, detail='Invalid refresh token')
 
-    print(f"[refresh] sub from token → {user_id}")
+    print(f'[refresh] sub from token → {user_id}')
 
     try:
         parsed_id = user_manager.parse_id(user_id)
         user = await user_manager.get(parsed_id)
         print('user', user)
     except exceptions.UserNotExists:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail='User not found')
 
     if not user.is_active:
-        raise HTTPException(status_code=401, detail="Inactive user")
+        raise HTTPException(status_code=401, detail='Inactive user')
 
     return user
-
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
@@ -122,15 +122,14 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         refresh_token = build_refresh_token(user)
         print('refresh_token', refresh_token)
         response.set_cookie(
-            key="refresh_token",
+            key='refresh_token',
             value=refresh_token,
             max_age=REFRESH_TTL,
             httponly=True,
-            # samesite="lax",
-            samesite = 'none',
-            secure = True, # for prod
+            # samesite='lax',
+            samesite='none',
+            secure=True,  # for prod
         )
-
 
     async def get_by_phone(self, phone: str) -> User:
         query = select(User).where(User.phone_number == phone.lower())
@@ -156,7 +155,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         """
         identifier = credentials.username
         try:
-            if "@" in identifier:
+            if '@' in identifier:
                 print('EMAIL')
                 user = await self.get_by_email(identifier)
             else:
@@ -168,14 +167,19 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             self.password_helper.hash(credentials.password)
             return None
 
-        verified, updated_password_hash = self.password_helper.verify_and_update(
+        (
+            verified,
+            updated_password_hash,
+        ) = self.password_helper.verify_and_update(
             credentials.password, user.hashed_password
         )
         if not verified:
             return None
         # Update password hash to a more robust one if needed
         if updated_password_hash is not None:
-            await self.user_db.update(user, {"hashed_password": updated_password_hash})
+            await self.user_db.update(
+                user, {'hashed_password': updated_password_hash}
+            )
 
         return user
 
@@ -192,21 +196,21 @@ bearer_transport = BearerTransport(tokenUrl='auth/jwt/login')
 class CustomJWTStrategy(JWTStrategy):
     async def write_token(self, user: models.UP) -> str:
         data = {
-            "sub": str(user.id),
-            "aud": self.token_audience,
-            "is_superuser": user.is_superuser,
+            'sub': str(user.id),
+            'aud': self.token_audience,
+            'is_superuser': user.is_superuser,
             'email': user.email,
         }
         return generate_jwt(
-            data, self.encode_key, self.lifetime_seconds, algorithm=self.algorithm
+            data,
+            self.encode_key,
+            self.lifetime_seconds,
+            algorithm=self.algorithm,
         )
 
 
 def get_jwt_strategy() -> JWTStrategy:
-    return CustomJWTStrategy(
-        secret=SECRET,
-        lifetime_seconds=ACCESS_TTL
-    )
+    return CustomJWTStrategy(secret=SECRET, lifetime_seconds=ACCESS_TTL)
 
 
 auth_backend = AuthenticationBackend(
