@@ -15,7 +15,9 @@ services:
       timeout: 3s
       retries: 3
     networks:
-      - wizard
+      wizard:
+        aliases:
+          - db
     ports:
       - "5432:5432"
 

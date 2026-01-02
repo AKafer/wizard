@@ -14,6 +14,7 @@ RUN apt-get update && apt-get upgrade -y && \
     openssl \
     libssl-dev \
     build-essential \
+    postgresql-client \
     python3-dev \
     libffi-dev \
   && apt-get clean && rm -rf /var/lib/apt/lists/*

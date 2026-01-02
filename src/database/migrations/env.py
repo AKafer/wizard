@@ -14,7 +14,7 @@ config = context.config
 fileConfig(config.config_file_name)
 target_metadata = BaseModel.metadata
 
-sqlalchemy_url = settings.DATABASE_URL
+config.set_section_option(config.config_ini_section, 'sqlalchemy.url', settings.DATABASE_URL)
 
 print("=== SETTINGS DATABASE_URL ===", settings.DATABASE_URL, flush=True)
 print("=== ENV POSTGRES_PASSWORD ===", repr(settings.DATABASE_PASSWORD), flush=True)
@@ -22,8 +22,6 @@ print("=== ENV DB_HOST ===", repr(settings.DATABASE_HOST), flush=True)
 print("=== ENV DB_PORT ===", repr(settings.DATABASE_PORT), flush=True)
 print("=== ALEMBIC MAIN sqlalchemy.url ===", config.get_main_option("sqlalchemy.url"), flush=True)
 print("=== ALEMBIC SECTION sqlalchemy.url ===", config.get_section(config.config_ini_section, {}).get("sqlalchemy.url"), flush=True)
-
-config.set_section_option(config.config_ini_section, 'sqlalchemy.url', sqlalchemy_url)
 
 
 def run_migrations_offline() -> None:
