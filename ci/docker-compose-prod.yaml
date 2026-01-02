@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  db:
+    container_name: wizard_db
+    image: postgres:14-bullseye
+    restart: on-failure
+    volumes:
+      - postgres_data_wizard:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      wizard:
+        aliases:
+          - db
+
+  redis:
+    container_name: wizard_redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - redis_data_wizard:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - wizard
+
+  app:
+    container_name: wizard_app
+    image: akafer/wizard
+    restart: on-failure
+    ports:
+      - "8800:8800"
+    command: >
+      bash -c "alembic upgrade head
+      && python3 /app/src/scripts/create_user.py
+      && python3 /app/src/run.py --port=8800"
+    env_file:
+      - ./.env
+    volumes:
+        - ./logs:/app/src/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wizard
+
+volumes:
+  postgres_data_wizard:
+  redis_data_wizard:
+
+networks:
+  wizard:
+    driver: bridge
