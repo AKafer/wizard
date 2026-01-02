@@ -94,7 +94,7 @@ class UserCreate(schemas.BaseUserCreate):
     is_active: bool = Field(True, exclude=True)
     is_verified: bool = Field(False, exclude=True)
     is_superuser: bool = Field(False, exclude=True)
-    date_of_birth: datetime | None = None
+    date_of_birth: date | None = None
     gender: str | None = None
 
 
@@ -110,7 +110,7 @@ class UserUpdate(schemas.BaseUserUpdate):
     is_active: bool = Field(True, exclude=True)
     is_verified: bool = Field(False, exclude=True)
     is_superuser: bool = Field(False, exclude=True)
-    date_of_birth: datetime | None
+    date_of_birth: date | None = None
     gender: str | None = None
 
 

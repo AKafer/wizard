@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from logging import config as logging_config
@@ -11,7 +12,7 @@ from starlette.staticfiles import StaticFiles
 import settings
 from core.simple_cache import Cache
 from routers import api_v1_router
-
+from scripts.status_checker import daily_job
 
 logger = logging.getLogger('control')
 
@@ -25,14 +26,22 @@ origins = settings.ORIGIN_HOSTS
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.cache = Cache(settings.REDIS_URL, namespace='control',)
+    app.state.cache = Cache(settings.REDIS_URL, namespace='wizard',)
     try:
         await app.state.cache.set("init:ping", "1", ttl=5)
         logger.info("✅ Redis connected")
     except Exception as e:
         logger.exception("Redis connect failed: %s", e)
 
+    app.state.daily_task = asyncio.create_task(daily_job())
+
     yield
+
+    app.state.daily_task.cancel()
+    try:
+        await app.state.daily_task
+    except asyncio.CancelledError:
+        pass
 
     await app.state.cache.close()
 

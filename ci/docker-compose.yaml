@@ -6,7 +6,7 @@ services:
     image: postgres:14-bullseye
     restart: on-failure
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - postgres_data_wizard:/var/lib/postgresql/data/
     env_file:
       - ./.env
     healthcheck:
@@ -57,7 +57,7 @@ services:
       - wizard
 
 volumes:
-  postgres_data:
+  postgres_data_wizard:
   redis_data_wizard:
 
 networks:

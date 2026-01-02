@@ -5,14 +5,16 @@ from sqlalchemy.orm import relationship
 
 from database.session import BaseModel
 
+
+class Type(str, Enum):
+    ACTIVE = 'ACTIVE'
+    USED = 'USED'
+    EXPIRED = 'EXPIRED'
+    CANCELLED = 'CANCELLED'
+
+
 class Certificates(BaseModel):
     __tablename__ = 'certificates'
-
-    class Type(str, Enum):
-        ACTIVE = 'ACTIVE'
-        USED = 'USED'
-        EXPIRED = 'EXPIRED'
-        CANCELLED = 'CANCELLED'
 
     id = sa.Column(sa.String(26), primary_key=True, default=lambda: str(ulid.ULID()))
     code = sa.Column(sa.String(64), unique=True, nullable=False) # human-readable unique code
