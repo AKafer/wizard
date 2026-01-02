@@ -60,6 +60,7 @@ services:
 
 volumes:
   postgres_data_wizard:
+    name: wizard_postgres_data
   redis_data_wizard:
 
 networks:
