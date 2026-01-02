@@ -62,5 +62,4 @@ volumes:
 
 networks:
   wizard:
-    name: wizard
     driver: bridge
