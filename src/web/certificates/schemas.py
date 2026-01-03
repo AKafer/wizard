@@ -3,17 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-class User(BaseModel):
-    name: str
-    last_name: str
-    phone_number: str
-
-    model_config = {"from_attributes": True}
-
-
 
 class Certificate(BaseModel):
-    user_id: UUID
     id: str
     code: str
     amount: float
@@ -25,24 +16,29 @@ class Certificate(BaseModel):
     used_at: date | None
     indefinite: bool
     period: int | None
-    user: User
+    name: str
+    last_name: str
+    phone: str
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class CertificateAmount(BaseModel):
     amount: float
+    code: str
     description: str
     status: str
     created_at: date | None
+    used_at: date | None
     period: int | None
-    user: User
+    name: str | None
+    last_name: str | None
+    phone: str
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class CertificateCreate(BaseModel):
-    user_id: str
     amount: float
     description: str
     employee: str
@@ -51,6 +47,9 @@ class CertificateCreate(BaseModel):
     created_at: date | None
     indefinite: bool
     period: int | None
+    name: str | None
+    last_name: str | None
+    phone: str
 
 
 class CertificateUpdate(BaseModel):
@@ -62,3 +61,6 @@ class CertificateUpdate(BaseModel):
     used_at: date | None = None
     indefinite: bool | None = None
     period: int | None = None
+    name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None

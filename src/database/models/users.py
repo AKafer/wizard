@@ -1,11 +1,13 @@
 from fastapi import Depends
-
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
-from sqlalchemy import String, Boolean
+from fastapi_users.db import (
+    SQLAlchemyBaseUserTableUUID,
+    SQLAlchemyUserDatabase,
+)
+from sqlalchemy import Boolean, String
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import expression
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import expression
 from sqlalchemy.types import DateTime
 
 from database.session import BaseModel
@@ -32,38 +34,21 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
     name: Mapped[str] = mapped_column(String(length=320), nullable=False)
     last_name: Mapped[str] = mapped_column(String(length=320), nullable=False)
     father_name: Mapped[str] = mapped_column(String(length=320), nullable=True)
-    telegram_id: Mapped[str] = mapped_column(String(length=320), nullable=True)
-    phone_number: Mapped[str] = mapped_column(String(length=320), nullable=True)
-    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=utcnow(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), onupdate=utcnow(), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    date_of_birth: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=True)
-    gender: Mapped[str] = mapped_column(String(length=32), nullable=True)
-
-    certificates = relationship(
-        'Certificates',
-        back_populates='user',
-        lazy='selectin',
-        cascade='all, delete, delete-orphan',
-        single_parent=True,
+    created_at: Mapped[str] = mapped_column(
+        DateTime(timezone=True), server_default=utcnow(), nullable=False
     )
-
-
-    @property
-    def last_name_with_initials(self) -> str:
-        last = (self.last_name or '').strip()
-        name = (self.name or '').strip()
-        father = (self.father_name or '').strip()
-
-        if not last and not name:
-            return ''
-
-        name_initial = f'{name[0].upper()}.' if name else ''
-        father_initial = f'{father[0].upper()}.' if father else ''
-
-        return f'{last} {name_initial}{father_initial}'.strip()
+    updated_at: Mapped[str] = mapped_column(
+        DateTime(timezone=True), onupdate=utcnow(), nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    is_superuser: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    is_verified: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
 
 
 async def get_user_db(session: AsyncSession = Depends(get_db_session)):

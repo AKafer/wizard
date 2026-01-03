@@ -5,7 +5,7 @@ from datetime import datetime, time, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models.certificates import Type
+from database.models.certificates import Status
 from database.session import Session
 from database.models import Certificates
 from web.certificates.services import set_actual_status
@@ -15,8 +15,8 @@ logger = logging.getLogger('wizard')
 
 async def refresh_certificates(session: AsyncSession) -> int:
     query = select(Certificates).filter(
-        Certificates.status == Type.ACTIVE,
-        Certificates.status == Type.EXPIRED,
+        Certificates.status == Status.ACTIVE,
+        Certificates.status == Status.EXPIRED,
         Certificates.indefinite == False
     )
     result = await session.execute(query)

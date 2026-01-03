@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from database.models.certificates import Certificates, Type
+from database.models.certificates import Certificates, Status
 from dependencies import get_db_session
 from main_schemas import ResponseErrorBody
 from web.certificates.filters import CertFilter
@@ -76,11 +76,11 @@ async def get_cert_by_id(
     await db_session.commit()
 
     if not user or not getattr(user, 'is_superuser', False):
-        cert.user.phone_number = (
-            '*********' + (cert.user.phone_number or '')[-3:]
+        cert.phone = '*********' + (cert.phone or '')[-3:]
+        cert.name = cert.name[0] + '******' if cert.name else None
+        cert.last_name = (
+            cert.last_name[0] + '******' if cert.last_name else None
         )
-        cert.user.name = cert.user.name[0] + '******'
-        cert.user.last_name = cert.user.last_name[0] + '******'
     return cert
 
 
@@ -178,7 +178,7 @@ async def charge_certificate(
             detail=f'Certificate with id {cert_id} not found',
         )
 
-    if cert.status != Type.ACTIVE:
+    if cert.status != Status.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f'Only ACTIVE certificates can be charged. Current status: {cert.status}',
