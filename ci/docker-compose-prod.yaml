@@ -34,6 +34,38 @@ services:
     networks:
       - wizard
 
+  kafka:
+    container_name: wizard_kafka
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - "1G"
+      - --reserve-memory
+      - "0M"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://kafka:9092
+      - --set
+      - redpanda.auto_create_topics_enabled=true
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: [ "CMD-SHELL", "rpk cluster health | grep -q healthy" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      wizard:
+        aliases:
+          - kafka
+
   app:
     container_name: wizard_app
     image: akafer/wizard
@@ -52,6 +84,22 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - wizard
+
+  worker_sms:
+    container_name: wizard_worker_sms
+    image: akafer/wizard
+    restart: on-failure
+    command: >
+      bash -c "python3 /app/src/workers/sms_worker.py"
+    env_file:
+      - ./.env
+    depends_on:
+      kafka:
         condition: service_healthy
     networks:
       - wizard

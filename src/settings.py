@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -73,3 +74,13 @@ LOGGING = {
         },
     },
 }
+
+# Rate Limiter
+RATE_LIMITER_TIMES = int(os.getenv('RATE_LIMITER_TIMES', default=5))
+RATE_LIMITER_SECONDS = int(os.getenv('RATE_LIMITER_SECONDS', default=10))
+
+# Kafka
+KAFKA_BOOTSTRAP_HOST = os.getenv('KAFKA_BOOTSTRAP_HOST', default='localhost')
+KAFKA_BOOTSTRAP_PORT = os.getenv('KAFKA_BOOTSTRAP_PORT', default=9092)
+KAFKA_GROUP_ID = 'wizard_consumer_group'
+KAFKA_SMS_TOPIC = 'sms_topic'

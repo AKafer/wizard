@@ -1,5 +1,9 @@
-from datetime import date
+import json
+from datetime import date, datetime, timezone
 
+from aiokafka import AIOKafkaProducer
+
+import settings
 from core.helpers import is_cert_expired
 from database.models import Certificates
 from database.models.certificates import Status
@@ -33,3 +37,29 @@ def set_actual_status(cert: Certificates) -> bool:
         cert.used_at = date.today()
 
     return cert.status != initial_status
+
+
+async def send_certificate_charged_event(
+    producer: AIOKafkaProducer,
+    *,
+    cert_id: str,
+    cert_code: str,
+    charge_sum: float,
+    new_amount: int,
+    status: str,
+):
+    payload = {
+        'event': 'CERTIFICATE_CHARGED',
+        'cert_id': cert_id,
+        'cert_code': cert_code,
+        'charge_sum': charge_sum,
+        'new_amount': new_amount,
+        'status': status,
+        'ts': datetime.now(timezone.utc).isoformat(),
+    }
+
+    await producer.send_and_wait(
+        topic=settings.KAFKA_SMS_TOPIC,
+        value=json.dumps(payload).encode('utf-8'),
+        key=cert_id.encode('utf-8'),
+    )

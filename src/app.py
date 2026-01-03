@@ -3,9 +3,12 @@ import logging
 from contextlib import asynccontextmanager
 from logging import config as logging_config
 
+from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI
-from fastapi_pagination import add_pagination
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_limiter import FastAPILimiter
+from fastapi_pagination import add_pagination
+from redis.asyncio import Redis
 from starlette.responses import PlainTextResponse
 from starlette.staticfiles import StaticFiles
 
@@ -24,14 +27,34 @@ def setup_routes(app: FastAPI):
 
 origins = settings.ORIGIN_HOSTS
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.cache = Cache(settings.REDIS_URL, namespace='wizard',)
+    app.state.cache = Cache(
+        settings.REDIS_URL,
+        namespace='wizard',
+    )
+
+    redis = Redis.from_url(
+        settings.REDIS_URL, encoding='utf-8', decode_responses=True
+    )
+    await FastAPILimiter.init(redis)
+
     try:
-        await app.state.cache.set("init:ping", "1", ttl=5)
-        logger.info("✅ Redis connected")
+        app.state.kafka_producer = AIOKafkaProducer(
+            bootstrap_servers=f'{settings.KAFKA_BOOTSTRAP_HOST}:{settings.KAFKA_BOOTSTRAP_PORT}',
+            client_id='wizard',
+        )
+        await app.state.kafka_producer.start()
+        logger.info('✅ Kafka connected')
     except Exception as e:
-        logger.exception("Redis connect failed: %s", e)
+        logger.exception('Kafka connect failed: %s', e)
+
+    try:
+        await app.state.cache.set('init:ping', '1', ttl=5)
+        logger.info('✅ Redis connected')
+    except Exception as e:
+        logger.exception('Redis connect failed: %s', e)
 
     app.state.daily_task = asyncio.create_task(daily_job())
 
@@ -44,7 +67,8 @@ async def lifespan(app: FastAPI):
         pass
 
     await app.state.cache.close()
-
+    await redis.close()
+    await app.state.kafka_producer.stop()
 
 
 def create_app() -> FastAPI:
@@ -52,11 +76,15 @@ def create_app() -> FastAPI:
         debug=True,
         docs_url='/api/v1/docs',
         openapi_url='/api/openapi.json',
-        lifespan=lifespan
+        lifespan=lifespan,
     )
     setup_routes(app)
     add_pagination(app)
-    app.mount(f'/api/{settings.STATIC_FOLDER}', StaticFiles(directory='static'), name='static')
+    app.mount(
+        f'/api/{settings.STATIC_FOLDER}',
+        StaticFiles(directory='static'),
+        name='static',
+    )
     logging_config.dictConfig(settings.LOGGING)
     app.add_middleware(
         CORSMiddleware,

@@ -1,13 +1,18 @@
+import logging
+
 import sqlalchemy
+from aiokafka import AIOKafkaProducer
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi_filter import FilterDepends
+from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from database.models.certificates import Certificates, Status
-from dependencies import get_db_session
+from dependencies import get_db_session, get_kafka_producer
 from main_schemas import ResponseErrorBody
+from settings import RATE_LIMITER_SECONDS, RATE_LIMITER_TIMES
 from web.certificates.filters import CertFilter
 from web.certificates.schemas import (
     Certificate,
@@ -17,10 +22,14 @@ from web.certificates.schemas import (
 )
 from web.certificates.services import (
     ErrorSaveToDatabase,
+    send_certificate_charged_event,
     set_actual_status,
     update_cert_in_db,
 )
 from web.users.users import current_superuser, fastapi_users
+
+logger = logging.getLogger('wizard')
+
 
 router = APIRouter(prefix='/certificates', tags=['certificates'])
 
@@ -58,6 +67,11 @@ async def get_all_certificates(
             'model': ResponseErrorBody,
         },
     },
+    dependencies=[
+        Depends(
+            RateLimiter(times=RATE_LIMITER_TIMES, seconds=RATE_LIMITER_SECONDS)
+        )
+    ],
 )
 async def get_cert_by_id(
     cert_id: str,
@@ -169,6 +183,7 @@ async def charge_certificate(
     cert_id: str,
     charge_sum: float,
     db_session: AsyncSession = Depends(get_db_session),
+    kafka_producer: AIOKafkaProducer = Depends(get_kafka_producer),
 ):
     query = select(Certificates).filter(Certificates.id == cert_id)
     cert = await db_session.scalar(query)
@@ -188,4 +203,27 @@ async def charge_certificate(
     cert.amount = actual_amount
     set_actual_status(cert)
     await db_session.commit()
+
+    try:
+        await send_certificate_charged_event(
+            kafka_producer,
+            cert_id=cert_id,
+            cert_code=cert.code,
+            charge_sum=charge_sum,
+            new_amount=cert.amount,
+            status=str(cert.status),
+        )
+        logger.info(
+            'CERTIFICATE_CHARGED event sent for cert_id %s: charged %s, new amount %s',
+            cert_id,
+            charge_sum,
+            cert.amount,
+        )
+    except Exception as e:
+        logger.error(
+            'Failed to send CERTIFICATE_CHARGED event for cert_id %s: %s',
+            cert_id,
+            e,
+        )
+
     return cert
