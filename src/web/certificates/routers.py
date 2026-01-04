@@ -156,14 +156,18 @@ async def update_certificate(
         db_cert = await update_cert_in_db(cert, **update_dict)
         set_actual_status(db_cert)
 
-        if (
-            update_data.amount is not None
-            and update_data.amount - cert.amount != 0
-        ):
-            transaction = Transactions(
-                cert_id=db_cert.id, amount=update_data.amount - cert.amount
-            )
-            db_session.add(transaction)
+        if update_data.amount is not None:
+            if update_data.amount > cert.nominal:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Amount cannot be greater than nominal value',
+                )
+
+            if update_data.amount - cert.amount != 0:
+                transaction = Transactions(
+                    cert_id=db_cert.id, amount=update_data.amount - cert.amount
+                )
+                db_session.add(transaction)
 
         await db_session.commit()
         await db_session.refresh(db_cert)
