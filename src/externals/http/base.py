@@ -138,7 +138,6 @@ class BaseApiClient:
             else:
                 raise orig_error
         except ApiClientAbortableException as e:
-
             orig_error = e
             response = e.response
             parsed_response = e.parsed_response

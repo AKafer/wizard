@@ -93,6 +93,7 @@ class MtsAPI(BaseApiClient):
                 url,
                 json=body,
                 auth=HTTPBasicAuth(settings.MTS_LOGIN, settings.MTS_PASSWORD),
+                raise_for_status=False
             )
             logger.info('DEBUG-1: MTS response: %s', response)
             if response.status == 404:
