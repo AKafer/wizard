@@ -1,12 +1,26 @@
-from datetime import date
-from uuid import UUID
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
+
+SERVER_TZ = ZoneInfo('Europe/Moscow')
+
+
+class Transaction(BaseModel):
+    time: datetime | None
+    amount: float
+
+    @field_serializer('time')
+    def serialize_time(self, dt: datetime):
+        return dt.astimezone(SERVER_TZ).isoformat()
+
+    model_config = {'from_attributes': True}
 
 
 class Certificate(BaseModel):
     id: str
     code: str
+    nominal: float
     amount: float
     description: str
     employee: str
@@ -24,6 +38,7 @@ class Certificate(BaseModel):
 
 
 class CertificateAmount(BaseModel):
+    nominal: float
     amount: float
     code: str
     description: str
@@ -34,12 +49,13 @@ class CertificateAmount(BaseModel):
     name: str | None
     last_name: str | None
     phone: str
+    transactions: list[Transaction]
 
     model_config = {'from_attributes': True}
 
 
 class CertificateCreate(BaseModel):
-    amount: float
+    nominal: float
     description: str
     employee: str
     check_amount: float | None
@@ -57,8 +73,6 @@ class CertificateUpdate(BaseModel):
     description: str | None = None
     employee: str | None = None
     check_amount: float | None = None
-    status: str | None = None
-    used_at: date | None = None
     indefinite: bool | None = None
     period: int | None = None
     name: str | None = None

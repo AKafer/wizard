@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from database.models.certificates import Certificates, Status
+from database.models.transactions import Transactions
 from dependencies import get_db_session, get_kafka_producer
 from main_schemas import ResponseErrorBody
 from settings import RATE_LIMITER_SECONDS, RATE_LIMITER_TIMES
@@ -22,6 +23,7 @@ from web.certificates.schemas import (
 )
 from web.certificates.services import (
     ErrorSaveToDatabase,
+    hide_cert_sentitive_info,
     send_certificate_charged_event,
     set_actual_status,
     update_cert_in_db,
@@ -90,11 +92,8 @@ async def get_cert_by_id(
     await db_session.commit()
 
     if not user or not getattr(user, 'is_superuser', False):
-        cert.phone = '*********' + (cert.phone or '')[-3:]
-        cert.name = cert.name[0] + '******' if cert.name else None
-        cert.last_name = (
-            cert.last_name[0] + '******' if cert.last_name else None
-        )
+        hide_cert_sentitive_info(cert)
+
     return cert
 
 
@@ -115,6 +114,7 @@ async def create_certificate(
 ):
     try:
         db_certificate = Certificates(**input_data.dict())
+        db_certificate.amount = db_certificate.nominal
         db_session.add(db_certificate)
         await db_session.commit()
         await db_session.refresh(db_certificate)
@@ -155,6 +155,16 @@ async def update_certificate(
     try:
         db_cert = await update_cert_in_db(cert, **update_dict)
         set_actual_status(db_cert)
+
+        if (
+            update_data.amount is not None
+            and update_data.amount - cert.amount != 0
+        ):
+            transaction = Transactions(
+                cert_id=db_cert.id, amount=update_data.amount - cert.amount
+            )
+            db_session.add(transaction)
+
         await db_session.commit()
         await db_session.refresh(db_cert)
     except ErrorSaveToDatabase as e:
@@ -199,9 +209,13 @@ async def charge_certificate(
             detail=f'Only ACTIVE certificates can be charged. Current status: {cert.status}',
         )
 
-    actual_amount = max(0, int(cert.amount - charge_sum))
+    actual_amount = round(max(0, cert.amount - charge_sum), 2)
     cert.amount = actual_amount
     set_actual_status(cert)
+
+    transaction = Transactions(cert_id=cert.id, amount=-charge_sum)
+    db_session.add(transaction)
+
     await db_session.commit()
 
     try:

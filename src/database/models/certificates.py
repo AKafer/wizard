@@ -2,6 +2,7 @@ from enum import Enum
 
 import sqlalchemy as sa
 import ulid
+from sqlalchemy.orm import relationship
 
 from database.session import BaseModel
 
@@ -19,12 +20,11 @@ class Certificates(BaseModel):
     id = sa.Column(
         sa.String(26), primary_key=True, default=lambda: str(ulid.ULID())
     )
-    code = sa.Column(
-        sa.String(64), unique=True, nullable=False
-    )   # human-readable unique code
+    code = sa.Column(sa.String(64), unique=True, nullable=False)
+    nominal = sa.Column(sa.Float, nullable=True)
     amount = sa.Column(sa.Float, nullable=False)
-    description = sa.Column(sa.Text, nullable=False)
-    employee = sa.Column(sa.String(128), nullable=False)
+    description = sa.Column(sa.Text, nullable=True)
+    employee = sa.Column(sa.String(128), nullable=True)
     check_amount = sa.Column(sa.Float, nullable=True)
     status = sa.Column(
         sa.Enum(Status, name='status_enum'),
@@ -38,3 +38,11 @@ class Certificates(BaseModel):
     name = sa.Column(sa.String(256), nullable=True)
     last_name = sa.Column(sa.String(256), nullable=True)
     phone = sa.Column(sa.String(256), nullable=False)
+
+    transactions = relationship(
+        'Transactions',
+        back_populates='cert',
+        lazy='selectin',
+        cascade='all, delete, delete-orphan',
+        single_parent=True,
+    )

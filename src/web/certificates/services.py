@@ -39,6 +39,13 @@ def set_actual_status(cert: Certificates) -> bool:
     return cert.status != initial_status
 
 
+def hide_cert_sentitive_info(cert: Certificates) -> None:
+    cert.phone = '*********' + (cert.phone or '')[-3:]
+    cert.name = cert.name[0] + '******' if cert.name else None
+    cert.last_name = cert.last_name[0] + '******' if cert.last_name else None
+    cert.transactions = []
+
+
 async def send_certificate_charged_event(
     producer: AIOKafkaProducer,
     *,
