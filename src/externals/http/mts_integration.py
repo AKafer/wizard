@@ -1,20 +1,18 @@
 import logging
-from typing import Optional
 from logging import config as logging_config
+from typing import Any, Optional
 
 import requests
-import time
 from aiohttp import BasicAuth as HTTPBasicAuth
-
-from dotenv import load_dotenv
 
 import settings
 from externals.http.base import BaseApiClient, BaseApiClientResponse
 
-load_dotenv()
-
 logging_config.dictConfig(settings.LOGGING)
 logger = logging.getLogger('wizard')
+
+
+NOT_FOUND_MSG_ERROR = 'Message ID not found'
 
 
 class NotCorrectPhoneNuberError(Exception):
@@ -27,6 +25,17 @@ class MtsAPI(BaseApiClient):
     @property
     def base_url(self) -> str:
         return settings.MTS_BASE_URL
+
+    def deep_get(self, obj: Any, path: list[Any], default=None):
+        if obj is None:
+            return default
+        cur = obj
+        for key in path:
+            try:
+                cur = cur[key]
+            except (TypeError, KeyError, IndexError):
+                return default
+        return cur
 
     def correc_number(self, phone: str) -> str:
         """Format to 7-XXX-XXX-XXXX"""
@@ -41,61 +50,77 @@ class MtsAPI(BaseApiClient):
         return phone
 
     async def sent_message(
-            self,
-            login: str,
-            password: str,
-            naming: str,
-            to: str,
-            text_message: str
+        self,
+        login: str,
+        password: str,
+        naming: str,
+        to: str,
+        text_message: str,
     ) -> BaseApiClientResponse:
         url = settings.MTS_SEND_MSG_URL
         body = {
-            "messages": [
+            'messages': [
                 {
-                    "content": {
-                        "short_text": text_message
-                    },
-                    "from": {
-                        "sms_address": naming
-                    },
-                    "to": [
-                        {
-                            "msisdn": to
-                        }
-                    ]
-                }]
+                    'content': {'short_text': text_message},
+                    'from': {'sms_address': naming},
+                    'to': [{'msisdn': to}],
+                }
+            ]
         }
         return await self.post(
             url, json=body, auth=HTTPBasicAuth(login, password)
         )
 
-
     def check_balance(self, login: str, password: str) -> int:
-        url = 'https://omnichannel.mts.ru/http-api/v1/messages/balanceManagement/balance/full'
+        url = settings.MTS_CHECK_BALANCE_URL
         resp_info = requests.post(url, auth=HTTPBasicAuth(login, password))
         if resp_info.status_code == 200:
             try:
-                balance = float(resp_info.json()["balance"])
+                balance = float(resp_info.json()['balance'])
             except (KeyError, AttributeError, TypeError):
                 balance = 0
         else:
             balance = 0
         return balance
 
-    def check_message(
-            self, login: str, password: str, message_id: str
+    async def check_message(
+        self, message_id: str
     ) -> (Optional[bool], Optional[str]):
         url = settings.MTS_CHECK_MSG_URL
-        body = {"int_ids": [message_id]}
+        body = {'int_ids': [message_id]}
         try:
-            response = self.post(url, data=body, auth=HTTPBasicAuth(login, password))
-            event_code = response["events_info"][0]["events_info"][0]["status"]
+            response = await self.post(
+                url,
+                json=body,
+                auth=HTTPBasicAuth(settings.MTS_LOGIN, settings.MTS_PASSWORD),
+            )
+            event_code = self.deep_get(
+                response.parsed_response,
+                ['events_info', 0, 'events_info', 0, 'status'],
+            )
+
+            if response.status == 404:
+                return None, NOT_FOUND_MSG_ERROR
+
             if event_code == 200:
                 return True, None
             elif event_code == 201:
-                error_reason = response["events_info"][0]["events_info"][0]['internal_errors']
+                error_reason = self.deep_get(
+                    response.parsed_response,
+                    ['events_info', 0, 'events_info', 0, 'internal_errors'],
+                )
                 return False, error_reason
-        except Exception:
+            else:
+                logger.warning(
+                    'Unknown event code %s for message id %s',
+                    event_code,
+                    message_id,
+                )
+                return None, None
+        except Exception as e:
+            logger.error(
+                f'Error checking message status for id {message_id}: {e}'
+            )
             return None, None
 
     async def sms_send(self, raw_phone: str, sms_text: str) -> str:
@@ -110,34 +135,14 @@ class MtsAPI(BaseApiClient):
             settings.MTS_PASSWORD,
             settings.MTS_NAME,
             phone,
-            sms_text
+            sms_text,
         )
 
-        print('RESPONSE SMS SEND', response)
-        message_id = response.parsed_response['messages'][0]["internal_id"]
+        message_id = self.deep_get(
+            response.parsed_response, ['messages', 0, 'internal_id']
+        )
+        if message_id is None:
+            logger.error(
+                f'Failed to send SMS to {phone}, response: {response}'
+            )
         return message_id
-
-    def sms_report(self, final_user_list: list, start_balance: int) -> dict:
-        """Формирует отчет об отправленных смс."""
-        time.sleep(self.sleep_time)
-        unsuccess_sms = 0
-        for user in final_user_list:
-            phone = user['phone']
-            if phone != 'НЕ УКАЗАН':
-                sms_id = user['sms_id']
-                sms_status, error_reason = self.check_message(settings.MTS_LOGIN, settings.MTS_PASSWORD, sms_id)
-                if sms_status:
-                    user['status'] = 'ДОСТАВЛЕНО'
-                elif sms_status is None:
-                    user['status'] = 'НЕ ИЗВЕСТНО'
-                else:
-                    unsuccess_sms += 1
-                    user['status'] = 'НЕ ДОСТАВЛЕНО'
-                    user['error_reason'] = error_reason
-        final_balance = self.check_balance(settings.MTS_LOGIN, settings.MTS_PASSWORD)
-        return {
-            'Clients': len(final_user_list),
-            'Unsuccess': unsuccess_sms,
-            'Costs': int(start_balance) - int(final_balance),
-            'Balance': final_balance
-        }

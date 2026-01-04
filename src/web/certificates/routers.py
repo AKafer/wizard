@@ -219,13 +219,14 @@ async def charge_certificate(
 
     transaction = Transactions(cert_id=cert.id, amount=-charge_sum)
     db_session.add(transaction)
-
     await db_session.commit()
+    await db_session.refresh(transaction)
 
     try:
         await send_certificate_charged_event(
             kafka_producer,
             cert_id=cert_id,
+            tran_id=transaction.id,
             cert_code=cert.code,
             charge_sum=charge_sum,
             new_amount=cert.amount,

@@ -13,16 +13,17 @@ from aiohttp import (
     ClientTimeout,
     ContentTypeError,
 )
+from failsafe import Delay, Failsafe, FailsafeError, RetryPolicy
+
+from externals.http.exceptions import (
+    ApiClientAbortableException,
+    ApiClientRetriableException,
+)
 from settings import (
     DEFAULT_REQUEST_TIMEOUT_SECONDS,
     FAILSAFE_ALLOWED_RETRIES,
     FAILSAFE_BACKOFF_SECONDS,
 )
-from externals.http.exceptions import (
-    ApiClientAbortableException,
-    ApiClientRetriableException,
-)
-from failsafe import Delay, Failsafe, FailsafeError, RetryPolicy
 
 
 @dataclasses.dataclass
@@ -105,12 +106,8 @@ class BaseApiClient:
         self, method: str, url: str, **kwargs
     ) -> Tuple[ClientResponse, dict | list]:
         async with self.session.request(
-            method,
-            url,
-            raise_for_status=False,
-            **kwargs
+            method, url, raise_for_status=False, **kwargs
         ) as response:
-            print('RESPONSE-0', response)
             parsed_response = await self._parse(response)
             await self.handle_errors(response, parsed_response)
         if not self.keep_session:
@@ -127,9 +124,6 @@ class BaseApiClient:
     ) -> BaseApiClientResponse:
         raise_for_status = params.pop('raise_for_status', True)
         url = urljoin(self.base_url, endpoint.lstrip('/'))
-        print('URL', url)
-        print('PARAMS', params)
-        print('METHOD', method)
         orig_error, response, parsed_response = None, None, None
         try:
             response, parsed_response = await self.failsafe.run(
@@ -138,21 +132,17 @@ class BaseApiClient:
 
         except FailsafeError as e:
             orig_error = e.__cause__ or e
-            print('ORIG ERROR-1', orig_error)
             if isinstance(orig_error, ApiClientRetriableException):
                 response = orig_error.response
                 parsed_response = orig_error.parsed_response
-                print('ORIG ERROR-1',parsed_response)
             else:
                 raise orig_error
         except ApiClientAbortableException as e:
-            print('ORIG ERROR-2', e)
+
             orig_error = e
             response = e.response
             parsed_response = e.parsed_response
-            print('ORIG ERROR-2', parsed_response)
         finally:
-            print('RESPONSE', response)
             if orig_error is not None:
                 if raise_for_status:
                     raise orig_error

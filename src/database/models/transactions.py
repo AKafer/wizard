@@ -19,6 +19,9 @@ class Transactions(BaseModel):
         server_default=sa.text("timezone('utc', now())"),
     )
     amount = sa.Column(sa.Float, nullable=False)
+    sms_id = sa.Column(sa.String(64), nullable=True)
+    sms_sent = sa.Column(sa.Boolean, nullable=True)
+    sms_error = sa.Column(sa.String(256), nullable=True)
 
     cert = relationship(
         'Certificates',
@@ -26,3 +29,4 @@ class Transactions(BaseModel):
         lazy='selectin',
         passive_deletes=True,
     )
+

@@ -50,6 +50,7 @@ async def send_certificate_charged_event(
     producer: AIOKafkaProducer,
     *,
     cert_id: str,
+    tran_id: int,
     cert_code: str,
     charge_sum: float,
     new_amount: int,
@@ -59,6 +60,7 @@ async def send_certificate_charged_event(
     payload = {
         'event': 'CERTIFICATE_CHARGED',
         'cert_id': cert_id,
+        'tran_id': tran_id,
         'cert_code': cert_code,
         'charge_sum': charge_sum,
         'new_amount': new_amount,

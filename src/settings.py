@@ -101,3 +101,7 @@ SMS_TEXT = os.getenv('SMS_TEXT')
 MTS_BASE_URL = 'https://omnichannel.mts.ru'
 MTS_SEND_MSG_URL = '/http-api/v1/messages'
 MTS_CHECK_MSG_URL = '/http-api/v1/messages/info'
+MTS_CHECK_BALANCE_URL = '/http-api/v1/messages/balanceManagement/balance/full'
+MTS_CHECK_ATTEMPTS = 5
+MTS_CHECK_BASE_DELAY = 5  # seconds
+MTS_CHECK_MAX_DELAY = 3600  # seconds
