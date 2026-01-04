@@ -84,3 +84,20 @@ KAFKA_BOOTSTRAP_HOST = os.getenv('KAFKA_BOOTSTRAP_HOST', default='localhost')
 KAFKA_BOOTSTRAP_PORT = os.getenv('KAFKA_BOOTSTRAP_PORT', default=9092)
 KAFKA_GROUP_ID = 'wizard_consumer_group'
 KAFKA_SMS_TOPIC = 'sms_topic'
+
+
+# API clients
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 60
+
+# Failsafe
+FAILSAFE_ALLOWED_RETRIES: int = 3
+FAILSAFE_BACKOFF_SECONDS: float = 0.2
+
+# MTS API
+MTS_LOGIN = os.getenv('MTS_LOGIN')
+MTS_PASSWORD = os.getenv('MTS_PASSWORD')
+MTS_NAME = os.getenv('MTS_NAME')
+SMS_TEXT = os.getenv('SMS_TEXT')
+MTS_BASE_URL = 'https://omnichannel.mts.ru'
+MTS_SEND_MSG_URL = '/http-api/v1/messages'
+MTS_CHECK_MSG_URL = '/http-api/v1/messages/info'

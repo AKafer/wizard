@@ -230,6 +230,7 @@ async def charge_certificate(
             charge_sum=charge_sum,
             new_amount=cert.amount,
             status=str(cert.status),
+            phone=cert.phone,
         )
         logger.info(
             'CERTIFICATE_CHARGED event sent for cert_id %s: charged %s, new amount %s',

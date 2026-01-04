@@ -54,6 +54,7 @@ async def send_certificate_charged_event(
     charge_sum: float,
     new_amount: int,
     status: str,
+    phone: str,
 ):
     payload = {
         'event': 'CERTIFICATE_CHARGED',
@@ -62,6 +63,7 @@ async def send_certificate_charged_event(
         'charge_sum': charge_sum,
         'new_amount': new_amount,
         'status': status,
+        'phone': phone,
         'ts': datetime.now(timezone.utc).isoformat(),
     }
 
