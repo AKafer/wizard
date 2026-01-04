@@ -105,3 +105,8 @@ MTS_CHECK_BALANCE_URL = '/http-api/v1/messages/balanceManagement/balance/full'
 MTS_CHECK_ATTEMPTS = 5
 MTS_CHECK_BASE_DELAY = 5  # seconds
 MTS_CHECK_MAX_DELAY = 3600  # seconds
+MTS_SMS_TEXT_TEMPLATE = '''
+По вашему подарочному сертификату {code} произошло списание на сумму {charge_sum} рублей.
+Текущий баланс сертификата: {balance} рублей. Статус сертификата: {status}.
+Спасибо, что выбираете нас!
+'''

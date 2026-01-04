@@ -46,7 +46,8 @@ class SmsWorker(AsyncKafkaBaseWorker):
         sent, error = None, None
         for attempt in range(settings.MTS_CHECK_ATTEMPTS):
             logger.info(
-                f'attempt {attempt} for checking SMS status for message_id {message_id}'
+                f'attempt {attempt} for checking SMS status '
+                f'for message_id {message_id}'
             )
             sent, error = await self.mts.check_message(message_id)
 
@@ -64,9 +65,14 @@ class SmsWorker(AsyncKafkaBaseWorker):
     async def handle(self, message):
         body = json.loads(message.value.decode('utf-8'))
         phone = body.get('phone')
-        tran_id = body.get('tran_id')
         message_id = await self.mts.sms_send(
-            phone, 'Test message from wizard service'
+            phone,
+            settings.MTS_SMS_TEXT_TEMPLATE.format(
+                code=body.get('cert_code'),
+                charge_sum=body.get('charge_sum'),
+                balance=body.get('new_amount'),
+                status=body.get('status'),
+            ),
         )
         sent, error = await self.check_msg_with_retry(message_id)
 
@@ -74,6 +80,7 @@ class SmsWorker(AsyncKafkaBaseWorker):
             logger.info(f'SMS to {phone} sent successfully.')
 
         if message_id is not None or sent is not None or error is not None:
+            tran_id = body.get('tran_id')
             await self.update_tran(tran_id, message_id, sent, error)
 
 
