@@ -15,7 +15,11 @@ import settings
 from core.workers import AsyncKafkaBaseWorker, AsyncKafkaWorkerRunner
 from database.models import Transactions
 from database.session import Session
-from externals.http.mts_integration import NOT_FOUND_MSG_ERROR, MtsAPI
+from externals.http.mts_integration import (
+    NOT_FOUND_MSG_ERROR,
+    MtsAPI,
+    NotCorrectPhoneNumberError,
+)
 
 logging_config.dictConfig(settings.LOGGING)
 logger = logging.getLogger('wizard')
@@ -68,20 +72,27 @@ class SmsWorker(AsyncKafkaBaseWorker):
         body = json.loads(message.value.decode('utf-8'))
         phone = body.get('phone')
         if settings.MTS_SMS_ENABLED:
-            message_id = await self.mts.sms_send(
-                phone,
-                settings.MTS_SMS_TEXT_TEMPLATE.format(
-                    code=body.get('cert_code'),
-                    charge_sum=body.get('charge_sum'),
-                    balance=body.get('new_amount'),
-                    status=body.get('status'),
-                ),
-            )
-            sent, error = await self.check_msg_with_retry(message_id)
+            try:
+                message_id = await self.mts.sms_send(
+                    phone,
+                    settings.MTS_SMS_TEXT_TEMPLATE.format(
+                        code=body.get('cert_code'),
+                        charge_sum=body.get('charge_sum'),
+                        balance=body.get('new_amount'),
+                        status=body.get('status'),
+                    ),
+                )
+                sent, error = await self.check_msg_with_retry(message_id)
+            except NotCorrectPhoneNumberError:
+                message_id, sent, error = (
+                    None,
+                    False,
+                    'Not correct phone number',
+                )
+
             if sent is True:
                 logger.info(f'SMS to {phone} sent successfully.')
         else:
-
             message_id, sent, error = f'test_{uuid.uuid4()}', True, None
             logger.info(
                 f'SMS sending is disabled. '

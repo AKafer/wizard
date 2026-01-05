@@ -15,12 +15,11 @@ logger = logging.getLogger('wizard')
 NOT_FOUND_MSG_ERROR = 'Message ID not found'
 
 
-class NotCorrectPhoneNuberError(Exception):
+class NotCorrectPhoneNumberError(Exception):
     pass
 
 
 class MtsAPI(BaseApiClient):
-    sleep_time = 60
 
     @property
     def base_url(self) -> str:
@@ -37,7 +36,7 @@ class MtsAPI(BaseApiClient):
                 return default
         return cur
 
-    def correc_number(self, phone: str) -> str:
+    def correct_number(self, phone: str) -> str:
         """Format to 7-XXX-XXX-XXXX"""
         if phone.startswith('+7'):
             phone = phone[1:]
@@ -46,7 +45,7 @@ class MtsAPI(BaseApiClient):
         elif phone.startswith('7'):
             pass
         else:
-            raise NotCorrectPhoneNuberError
+            raise NotCorrectPhoneNumberError
         return phone
 
     async def sent_message(
@@ -125,10 +124,10 @@ class MtsAPI(BaseApiClient):
 
     async def sms_send(self, raw_phone: str, sms_text: str) -> str:
         try:
-            phone = self.correc_number(raw_phone)
-        except NotCorrectPhoneNuberError:
+            phone = self.correct_number(raw_phone)
+        except NotCorrectPhoneNumberError:
             logger.error(f'Phone number {raw_phone} not recognized')
-            raise NotCorrectPhoneNuberError
+            raise NotCorrectPhoneNumberError
 
         response = await self.sent_message(
             settings.MTS_LOGIN,

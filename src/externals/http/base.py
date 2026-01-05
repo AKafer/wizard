@@ -49,7 +49,7 @@ class BaseApiClient:
     ]
 
     def __init__(self, keep_session: bool = False):
-        self.logger = logging.getLogger('control')
+        self.logger = logging.getLogger('wizard')
         self.failsafe = self._init_failsafe()
         self.keep_session = keep_session
 
@@ -129,7 +129,6 @@ class BaseApiClient:
             response, parsed_response = await self.failsafe.run(
                 lambda: self._make_request(method, url, **params)
             )
-
         except FailsafeError as e:
             orig_error = e.__cause__ or e
             if isinstance(orig_error, ApiClientRetriableException):
@@ -141,16 +140,16 @@ class BaseApiClient:
             orig_error = e
             response = e.response
             parsed_response = e.parsed_response
-        finally:
-            if orig_error is not None:
-                if raise_for_status:
-                    raise orig_error
-            return BaseApiClientResponse(
-                raw_response=response,
-                status=response.status,
-                headers=response.headers,
-                parsed_response=parsed_response,
-            )
+
+        if orig_error is not None and raise_for_status:
+            raise orig_error
+
+        return BaseApiClientResponse(
+            raw_response=response,
+            status=response.status if response else None,
+            headers=response.headers if response else None,
+            parsed_response=parsed_response,
+        )
 
     async def get(self, endpoint: str, **kwargs) -> BaseApiClientResponse:
         return await self.request('get', endpoint, **kwargs)
