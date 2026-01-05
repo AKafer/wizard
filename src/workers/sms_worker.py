@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import sys
+import uuid
 from logging import config as logging_config
 
 from sqlalchemy import select
@@ -45,6 +46,13 @@ class SmsWorker(AsyncKafkaBaseWorker):
     ) -> (bool | None, str | None):
         sent, error = None, None
         for attempt in range(settings.MTS_CHECK_ATTEMPTS):
+            delay = min(
+                settings.MTS_CHECK_BASE_DELAY * (2**attempt),
+                settings.MTS_CHECK_MAX_DELAY,
+            )
+            jitter = random.uniform(0, delay * 0.1)
+            await asyncio.sleep(delay + jitter)
+
             logger.info(
                 f'attempt {attempt} for checking SMS status '
                 f'for message_id {message_id}'
@@ -54,30 +62,31 @@ class SmsWorker(AsyncKafkaBaseWorker):
             if error != NOT_FOUND_MSG_ERROR:
                 break
 
-            delay = min(
-                settings.MTS_CHECK_BASE_DELAY * (2**attempt),
-                settings.MTS_CHECK_MAX_DELAY,
-            )
-            jitter = random.uniform(0, delay * 0.1)
-            await asyncio.sleep(delay + jitter)
         return sent, error
 
     async def handle(self, message):
         body = json.loads(message.value.decode('utf-8'))
         phone = body.get('phone')
-        message_id = await self.mts.sms_send(
-            phone,
-            settings.MTS_SMS_TEXT_TEMPLATE.format(
-                code=body.get('cert_code'),
-                charge_sum=body.get('charge_sum'),
-                balance=body.get('new_amount'),
-                status=body.get('status'),
-            ),
-        )
-        sent, error = await self.check_msg_with_retry(message_id)
+        if settings.MTS_SMS_ENABLED:
+            message_id = await self.mts.sms_send(
+                phone,
+                settings.MTS_SMS_TEXT_TEMPLATE.format(
+                    code=body.get('cert_code'),
+                    charge_sum=body.get('charge_sum'),
+                    balance=body.get('new_amount'),
+                    status=body.get('status'),
+                ),
+            )
+            sent, error = await self.check_msg_with_retry(message_id)
+            if sent is True:
+                logger.info(f'SMS to {phone} sent successfully.')
+        else:
 
-        if sent is True:
-            logger.info(f'SMS to {phone} sent successfully.')
+            message_id, sent, error = f'test_{uuid.uuid4()}', True, None
+            logger.info(
+                f'SMS sending is disabled. '
+                f'Simulating successful send to {phone}.'
+            )
 
         if message_id is not None or sent is not None or error is not None:
             tran_id = body.get('tran_id')

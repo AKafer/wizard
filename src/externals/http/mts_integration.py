@@ -93,18 +93,15 @@ class MtsAPI(BaseApiClient):
                 url,
                 json=body,
                 auth=HTTPBasicAuth(settings.MTS_LOGIN, settings.MTS_PASSWORD),
-                raise_for_status=False
+                raise_for_status=False,
             )
-            logger.info('DEBUG-1: MTS response: %s', response)
             if response.status == 404:
                 return None, NOT_FOUND_MSG_ERROR
 
-            logger.info('DEBUG=2: MTS parsed response: %s', response.parsed_response)
             event_code = self.deep_get(
                 response.parsed_response,
                 ['events_info', 0, 'events_info', 0, 'status'],
             )
-            logger.info('DEBUG-3: MTS event code: %s', event_code)
             if event_code == 200:
                 return True, None
             elif event_code == 201:
@@ -121,7 +118,9 @@ class MtsAPI(BaseApiClient):
                 )
                 return None, None
         except Exception:
-            logger.exception("Error checking message status for id %s", message_id)
+            logger.exception(
+                'Error checking message status for id %s', message_id
+            )
             return None, None
 
     async def sms_send(self, raw_phone: str, sms_text: str) -> str:

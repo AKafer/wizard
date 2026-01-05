@@ -94,6 +94,7 @@ FAILSAFE_ALLOWED_RETRIES: int = 3
 FAILSAFE_BACKOFF_SECONDS: float = 0.2
 
 # MTS API
+MTS_SMS_ENABLED = os.getenv('MTS_SMS_ENABLED', 'false').lower() == 'true'
 MTS_LOGIN = os.getenv('MTS_LOGIN')
 MTS_PASSWORD = os.getenv('MTS_PASSWORD')
 MTS_NAME = os.getenv('MTS_NAME')
@@ -103,7 +104,7 @@ MTS_SEND_MSG_URL = '/http-api/v1/messages'
 MTS_CHECK_MSG_URL = '/http-api/v1/messages/info'
 MTS_CHECK_BALANCE_URL = '/http-api/v1/messages/balanceManagement/balance/full'
 MTS_CHECK_ATTEMPTS = 5
-MTS_CHECK_BASE_DELAY = 5  # seconds
+MTS_CHECK_BASE_DELAY = 3  # seconds
 MTS_CHECK_MAX_DELAY = 3600  # seconds
 MTS_SMS_TEXT_TEMPLATE = '''
 По вашему подарочному сертификату {code} произошло списание на сумму {charge_sum} рублей.
