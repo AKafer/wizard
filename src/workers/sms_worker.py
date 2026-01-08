@@ -34,6 +34,18 @@ class SmsWorker(AsyncKafkaBaseWorker):
     def get_topics():
         return [settings.KAFKA_SMS_TOPIC]
 
+    def normalize_error(self, error) -> str | None:
+        if error is None:
+            return None
+        if isinstance(error, str):
+            return error
+        try:
+            return json.dumps(error, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f'Failed to normalize error: {e}')
+            return str(error)
+
+
     async def update_tran(self, tran_id, message_id, sent, error):
         async with Session() as session:
             query = select(Transactions).where(Transactions.id == tran_id)
@@ -42,7 +54,7 @@ class SmsWorker(AsyncKafkaBaseWorker):
             if tran:
                 tran.sms_id = message_id
                 tran.sms_sent = sent
-                tran.sms_error = error[0:255] if error else None
+                tran.sms_error = self.normalize_error(error)[:255] if error else None
                 await session.commit()
 
     async def check_msg_with_retry(
