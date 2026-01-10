@@ -1,4 +1,6 @@
 import json
+import secrets
+import string
 from datetime import date, datetime, timezone
 
 from aiokafka import AIOKafkaProducer
@@ -7,6 +9,8 @@ import settings
 from core.helpers import is_cert_expired
 from database.models import Certificates
 from database.models.certificates import Status
+
+ALPHABET = string.digits + string.ascii_uppercase
 
 
 class ErrorSaveToDatabase(Exception):
@@ -46,6 +50,10 @@ def hide_cert_sentitive_info(cert: Certificates) -> None:
     cert.transactions = []
 
 
+def generate_secure_code(length: int = 6) -> str:
+    return ''.join(secrets.choice(ALPHABET) for _ in range(length))
+
+
 async def send_certificate_charged_event(
     producer: AIOKafkaProducer,
     *,
@@ -53,8 +61,7 @@ async def send_certificate_charged_event(
     tran_id: int,
     cert_code: str,
     charge_sum: float,
-    new_amount: int,
-    status: str,
+    confirm_code: str,
     phone: str,
 ):
     payload = {
@@ -63,8 +70,7 @@ async def send_certificate_charged_event(
         'tran_id': tran_id,
         'cert_code': cert_code,
         'charge_sum': charge_sum,
-        'new_amount': new_amount,
-        'status': status,
+        'confirm_code': confirm_code,
         'phone': phone,
         'ts': datetime.now(timezone.utc).isoformat(),
     }

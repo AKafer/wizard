@@ -15,7 +15,10 @@ from starlette.staticfiles import StaticFiles
 import settings
 from core.simple_cache import Cache
 from routers import api_v1_router
-from scripts.status_checker import daily_job
+from scripts.status_checker import (
+    actualize_certificates,
+    cancel_expired_transactions,
+)
 
 logger = logging.getLogger('wizard')
 
@@ -56,15 +59,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.exception('Redis connect failed: %s', e)
 
-    app.state.daily_task = asyncio.create_task(daily_job())
+    app.state.actualize_certificates_task = asyncio.create_task(
+        actualize_certificates()
+    )
+    app.state.cancel_transactions_task = asyncio.create_task(
+        cancel_expired_transactions()
+    )
 
     yield
 
-    app.state.daily_task.cancel()
-    try:
-        await app.state.daily_task
-    except asyncio.CancelledError:
-        pass
+    for task in (
+        app.state.actualize_certificates_task,
+        app.state.cancel_transactions_task,
+    ):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     await app.state.cache.close()
     await redis.close()

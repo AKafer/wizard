@@ -12,6 +12,7 @@ class Transaction(BaseModel):
     sms_id: str | None
     sms_sent: bool | None
     sms_error: str | None
+    status: str
 
     @field_serializer('time')
     def serialize_time(self, dt: datetime):

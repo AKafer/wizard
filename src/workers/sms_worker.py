@@ -45,7 +45,6 @@ class SmsWorker(AsyncKafkaBaseWorker):
             logger.error(f'Failed to normalize error: {e}')
             return str(error)
 
-
     async def update_tran(self, tran_id, message_id, sent, error):
         async with Session() as session:
             query = select(Transactions).where(Transactions.id == tran_id)
@@ -54,7 +53,9 @@ class SmsWorker(AsyncKafkaBaseWorker):
             if tran:
                 tran.sms_id = message_id
                 tran.sms_sent = sent
-                tran.sms_error = self.normalize_error(error)[:255] if error else None
+                tran.sms_error = (
+                    self.normalize_error(error)[:255] if error else None
+                )
                 await session.commit()
 
     async def check_msg_with_retry(
@@ -88,10 +89,9 @@ class SmsWorker(AsyncKafkaBaseWorker):
                 message_id = await self.mts.sms_send(
                     phone,
                     settings.MTS_SMS_TEXT_TEMPLATE.format(
-                        code=body.get('cert_code'),
                         charge_sum=body.get('charge_sum'),
-                        balance=body.get('new_amount'),
-                        status=body.get('status'),
+                        cert_code=body.get('cert_code'),
+                        confirm_code=body.get('confirm_code'),
                     ),
                 )
                 sent, error = await self.check_msg_with_retry(message_id)
@@ -101,7 +101,6 @@ class SmsWorker(AsyncKafkaBaseWorker):
                     False,
                     'Not correct phone number',
                 )
-
             if sent is True:
                 logger.info(f'SMS to {phone} sent successfully.')
         else:

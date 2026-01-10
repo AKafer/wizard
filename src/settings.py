@@ -107,7 +107,11 @@ MTS_CHECK_ATTEMPTS = 5
 MTS_CHECK_BASE_DELAY = 3  # seconds
 MTS_CHECK_MAX_DELAY = 3600  # seconds
 MTS_SMS_TEXT_TEMPLATE = '''
-По вашему подарочному сертификату {code} произошло списание на сумму {charge_sum} рублей.
-Текущий баланс сертификата: {balance} рублей. Статус сертификата: {status}.
-Спасибо, что выбираете нас!
+Для списания на сумму {charge_sum} рублей по вашему подарочному сертификату {cert_code}
+назовите оператору код подтверждения {confirm_code}.
 '''
+
+
+# Constants
+TRANSACTION_CHECK_INTERVAL = 60 # seconds
+TRANSACTION_VALID_TIME = 30 # minutes

@@ -38,6 +38,7 @@ class Certificates(BaseModel):
     name = sa.Column(sa.String(256), nullable=True)
     last_name = sa.Column(sa.String(256), nullable=True)
     phone = sa.Column(sa.String(256), nullable=False)
+    actual_tran_id = sa.Column(sa.BigInteger, nullable=True)
 
     transactions = relationship(
         'Transactions',

@@ -8,9 +8,10 @@ from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.responses import JSONResponse
 
 from database.models.certificates import Certificates, Status
-from database.models.transactions import Transactions
+from database.models.transactions import StatusTran, Transactions
 from dependencies import get_db_session, get_kafka_producer
 from main_schemas import ResponseErrorBody
 from settings import RATE_LIMITER_SECONDS, RATE_LIMITER_TIMES
@@ -23,6 +24,7 @@ from web.certificates.schemas import (
 )
 from web.certificates.services import (
     ErrorSaveToDatabase,
+    generate_secure_code,
     hide_cert_sentitive_info,
     send_certificate_charged_event,
     set_actual_status,
@@ -180,9 +182,8 @@ async def update_certificate(
 
 
 @router.post(
-    '/charge/{cert_id}',
+    '/send_confirm_code/{cert_id}',
     status_code=status.HTTP_200_OK,
-    response_model=Certificate,
     responses={
         status.HTTP_400_BAD_REQUEST: {
             'model': ResponseErrorBody,
@@ -193,7 +194,7 @@ async def update_certificate(
     },
     dependencies=[Depends(current_superuser)],
 )
-async def charge_certificate(
+async def send_confirm_code(
     cert_id: str,
     charge_sum: float,
     db_session: AsyncSession = Depends(get_db_session),
@@ -201,6 +202,7 @@ async def charge_certificate(
 ):
     query = select(Certificates).filter(Certificates.id == cert_id)
     cert = await db_session.scalar(query)
+
     if cert is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -213,37 +215,109 @@ async def charge_certificate(
             detail=f'Only ACTIVE certificates can be charged. Current status: {cert.status}',
         )
 
-    actual_amount = round(max(0, cert.amount - charge_sum), 2)
-    cert.amount = actual_amount
-    set_actual_status(cert)
+    if charge_sum < 0 or charge_sum > cert.amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Charge sum cannot be negative or greater than total amount',
+        )
 
-    transaction = Transactions(cert_id=cert.id, amount=-charge_sum)
-    db_session.add(transaction)
+    confirm_code = generate_secure_code()
+
+    tran = Transactions(
+        cert_id=cert.id,
+        amount=-charge_sum,
+        confirm_code=confirm_code,
+    )
+    db_session.add(tran)
+    await db_session.flush()
+
+    cert.actual_tran_id = tran.id
+
     await db_session.commit()
-    await db_session.refresh(transaction)
+    await db_session.refresh(cert)
+    await db_session.refresh(tran)
 
     try:
         await send_certificate_charged_event(
             kafka_producer,
             cert_id=cert_id,
-            tran_id=transaction.id,
+            tran_id=tran.id,
             cert_code=cert.code,
             charge_sum=charge_sum,
-            new_amount=cert.amount,
-            status=str(cert.status),
+            confirm_code=confirm_code,
             phone=cert.phone,
         )
         logger.info(
-            'CERTIFICATE_CHARGED event sent for cert_id %s: charged %s, new amount %s',
-            cert_id,
-            charge_sum,
-            cert.amount,
+            'Confirm code sent successfully for certificate %s', cert_id
         )
     except Exception as e:
         logger.error(
-            'Failed to send CERTIFICATE_CHARGED event for cert_id %s: %s',
+            'Failed to send confirmation code for certificate %s, %s',
             cert_id,
             e,
         )
 
-    return cert
+    return JSONResponse(content={'result': 'ok'})
+
+
+@router.post(
+    '/charge/{cert_id}',
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            'model': ResponseErrorBody,
+        },
+        status.HTTP_404_NOT_FOUND: {
+            'model': ResponseErrorBody,
+        },
+    },
+    dependencies=[Depends(current_superuser)],
+)
+async def charge_certificate(
+    cert_id: str,
+    confirm_code: str,
+    db_session: AsyncSession = Depends(get_db_session),
+):
+    query = select(Certificates).filter(Certificates.id == cert_id)
+    cert = await db_session.scalar(query)
+
+    if cert is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Certificate with id {cert_id} not found',
+        )
+
+    if cert.status != Status.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Only ACTIVE certificates can be charged. Current status: {cert.status}',
+        )
+
+    query = select(Transactions).filter(Transactions.id == cert.actual_tran_id)
+    tran = await db_session.scalar(query)
+
+    if tran is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Not found actual transaction id for cert: {cert_id}',
+        )
+
+    if tran.status in [StatusTran.DONE, StatusTran.CANCELLED]:
+        raise HTTPException(
+            400, detail='Transaction already done or cancelled'
+        )
+
+    if confirm_code != tran.confirm_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Confirm code does not match transaction confirmation code',
+        )
+
+    cert.amount = cert.amount + tran.amount
+    set_actual_status(cert)
+    tran.status = StatusTran.DONE
+
+    await db_session.commit()
+    await db_session.refresh(cert)
+
+    return JSONResponse(content={'result': 'ok'})
