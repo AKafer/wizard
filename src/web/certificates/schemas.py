@@ -9,6 +9,7 @@ SERVER_TZ = ZoneInfo('Europe/Moscow')
 class Transaction(BaseModel):
     time: datetime | None
     amount: float
+    confirm_code: str | None
     sms_id: str | None
     sms_sent: bool | None
     sms_error: str | None
