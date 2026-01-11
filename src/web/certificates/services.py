@@ -10,7 +10,7 @@ from core.helpers import is_cert_expired
 from database.models import Certificates
 from database.models.certificates import Status
 
-ALPHABET = string.digits + string.ascii_uppercase
+ALPHABET = string.digits
 
 
 class ErrorSaveToDatabase(Exception):
@@ -50,7 +50,7 @@ def hide_cert_sentitive_info(cert: Certificates) -> None:
     cert.transactions = []
 
 
-def generate_secure_code(length: int = 6) -> str:
+def generate_secure_code(length: int = 4) -> str:
     return ''.join(secrets.choice(ALPHABET) for _ in range(length))
 
 
