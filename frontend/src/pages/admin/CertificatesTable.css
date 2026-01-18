@@ -1,0 +1,109 @@
+.cert-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: sans-serif;
+}
+
+h2 {
+    margin-bottom: 12px;
+}
+
+.global-search {
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 300px;
+    font-size: 14px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead {
+    background-color: #f3f3f3;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+th,
+td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+tr:hover {
+    background-color: #fafafa;
+}
+
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.status-active {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.status-used {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.status-expired {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.id-link {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+.filters-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.active-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.tg-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.tg-btn img {
+    width: 22px;
+    height: 22px;
+}
+
+.tg-btn:hover {
+    transform: scale(1.1);
+}
+
+._form_1widf_1 input {
+    width: 80%;
+}

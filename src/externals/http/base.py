@@ -123,7 +123,13 @@ class BaseApiClient:
         self, method: str, endpoint: str, **params
     ) -> BaseApiClientResponse:
         raise_for_status = params.pop('raise_for_status', True)
-        url = urljoin(self.base_url, endpoint.lstrip('/'))
+        if ':' in endpoint:
+            url = f'{self.base_url.rstrip("/")}/{endpoint.lstrip("/")}'
+        else:
+            url = urljoin(self.base_url, endpoint.lstrip('/'))
+        print("BASE_URL:", repr(self.base_url))
+        print("ENDPOINT:", repr(endpoint))
+        print("JOINED:", repr(url))
         orig_error, response, parsed_response = None, None, None
         try:
             response, parsed_response = await self.failsafe.run(

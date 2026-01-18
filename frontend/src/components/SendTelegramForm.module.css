@@ -1,0 +1,69 @@
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 14px;
+}
+
+.form p {
+    margin: 0;
+    color: #333;
+}
+
+.form b {
+    font-weight: 600;
+}
+
+.form input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #d0d0d0;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form input:focus {
+    outline: none;
+    border-color: #229ed9; /* Telegram blue */
+    box-shadow: 0 0 0 2px rgba(34, 158, 217, 0.15);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.actions button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.actions button:first-child {
+    background: #f2f2f2;
+    color: #333;
+}
+
+.actions button:first-child:hover {
+    background: #e6e6e6;
+}
+
+.actions button:last-child {
+    background: #229ed9;
+    color: #fff;
+}
+
+.actions button:last-child:hover {
+    background: #1c8cc5;
+}
+
+.actions button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

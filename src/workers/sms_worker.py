@@ -22,7 +22,7 @@ from externals.http.mts_integration import (
 )
 
 logging_config.dictConfig(settings.LOGGING)
-logger = logging.getLogger('wizard')
+logger = logging.getLogger(settings.PROJECT)
 
 
 class SmsWorker(AsyncKafkaBaseWorker):

@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+PROJECT = 'wizard'
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Security
@@ -84,6 +86,7 @@ KAFKA_BOOTSTRAP_HOST = os.getenv('KAFKA_BOOTSTRAP_HOST', default='localhost')
 KAFKA_BOOTSTRAP_PORT = os.getenv('KAFKA_BOOTSTRAP_PORT', default=9092)
 KAFKA_GROUP_ID = 'wizard_consumer_group'
 KAFKA_SMS_TOPIC = 'sms_topic'
+KAFKA_TELEGRAM_TOPIC = 'telegram_topic'
 
 
 # API clients
@@ -111,7 +114,35 @@ MTS_SMS_TEXT_TEMPLATE = '''
 назовите оператору код подтверждения {confirm_code}.
 '''
 
+# TELEGRAM API
+TELEGRAM_API_BASE_URL = 'https://api.telegram.org'
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '')
+TELEGRAM_DEFAULT_IMAGE_URL = 'https://www.istockphoto.com/ru/%D1%84%D0%BE%D1%82%D0%BE'
+'/%D0%BC%D0%B8%D0%BB%D0%B0%D1%8F-%D1%80%D1%8B%D0%B6%D0%B0%D1%8F'
+'-%D0%BA%D0%BE%D1%88%D0%BA%D0%B0-gm1443562748-482502032'
+TELEGRAM_TEXT_TEMPLATE = '''
+🎁<b>Подарочный сертификат ANTRASHA оформлен</b>\n\n
+Сертификат даёт право на скидку в размере номинала при покупке в магазине ANTRASHA.\n\n
+<b>Номер сертификата:</b> <code>{cert_code}</code>\n
+<b>Номинал:</b> <code>{amount} </code>\n
+<b>Тел владельца:</b>{phone}\n
+<b>Срок действия:</b> {expire_date}\n\n
+🔗 <b>Ссылка на сертификат:</b>\n
+{link}\n\n
+По ссылке доступен статус сертификата и полные условия использования.\n\n
+Вы можете переслать это сообщение получателю — ссылка является сертификатом.\n\n
+📍 <b>Магазин ANTRASHA</b>\n
+г. Тверь, б-р Радищева, 37\n
+https://antrasha.ru/\n\n
+ℹ️ <b>Правила использования:</b>\n
+https://antrasha.ru/giftcards\n\n
+Если возникнут вопросы — мы всегда на связи:\n
+Наш канал: https://t.me/+iw9aML3TIEJmOTFi\n
+Наш бот: https://t.me/AntrashaBot
+'''
+
 
 # Constants
 TRANSACTION_CHECK_INTERVAL = 60 # seconds
 TRANSACTION_VALID_TIME = 30 # minutes
+

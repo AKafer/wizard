@@ -83,3 +83,9 @@ class CertificateUpdate(BaseModel):
     name: str | None = None
     last_name: str | None = None
     phone: str | None = None
+
+
+
+class TelegramMsgBody(BaseModel):
+    chat_id: int
+    image_url: str | None = None

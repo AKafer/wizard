@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 import sqlalchemy
 from aiokafka import AIOKafkaProducer
@@ -8,8 +9,10 @@ from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+import settings
 from database.models.certificates import Certificates, Status
 from database.models.transactions import StatusTran, Transactions
 from dependencies import get_db_session, get_kafka_producer
@@ -20,7 +23,7 @@ from web.certificates.schemas import (
     Certificate,
     CertificateAmount,
     CertificateCreate,
-    CertificateUpdate,
+    CertificateUpdate, TelegramMsgBody,
 )
 from web.certificates.services import (
     ErrorSaveToDatabase,
@@ -28,7 +31,7 @@ from web.certificates.services import (
     hide_cert_sentitive_info,
     send_certificate_charged_event,
     set_actual_status,
-    update_cert_in_db,
+    update_cert_in_db, send_telegram_msg_event, hide_phone, get_telegram_text,
 )
 from web.users.users import current_superuser, fastapi_users
 
@@ -293,6 +296,12 @@ async def charge_certificate(
             detail=f'Only ACTIVE certificates can be charged. Current status: {cert.status}',
         )
 
+    if not cert.actual_tran_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Certificate with id {cert_id} has no active transaction',
+        )
+
     query = select(Transactions).filter(Transactions.id == cert.actual_tran_id)
     tran = await db_session.scalar(query)
 
@@ -319,5 +328,60 @@ async def charge_certificate(
 
     await db_session.commit()
     await db_session.refresh(cert)
+
+    return JSONResponse(content={'result': 'ok'})
+
+
+@router.post(
+    '/send_telegram_msg/{cert_id}',
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            'model': ResponseErrorBody,
+        },
+        status.HTTP_404_NOT_FOUND: {
+            'model': ResponseErrorBody,
+        },
+    },
+    dependencies=[Depends(current_superuser)],
+)
+async def send_telegram_msg(
+    cert_id: str,
+    input_data: TelegramMsgBody,
+    request: Request,
+    db_session: AsyncSession = Depends(get_db_session),
+    kafka_producer: AIOKafkaProducer = Depends(get_kafka_producer),
+):
+    query = select(Certificates).filter(Certificates.id == cert_id)
+    cert = await db_session.scalar(query)
+
+    if cert is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Certificate with id {cert_id} not found',
+        )
+
+    if cert.status != Status.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Certificate with id {cert_id} is not active',
+        )
+
+    text = get_telegram_text(cert, request)
+    image_url = (
+        input_data.image_url
+        or settings.TELEGRAM_DEFAULT_IMAGE_URL
+    )
+
+    try:
+        await send_telegram_msg_event(
+            kafka_producer, chat_id=input_data.chat_id, image_url=image_url, text=text
+        )
+    except Exception as e:
+        logger.exception("send_telegram_msg_event failed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
     return JSONResponse(content={'result': 'ok'})

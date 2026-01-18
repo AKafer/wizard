@@ -1,9 +1,10 @@
 import json
 import secrets
 import string
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 
 from aiokafka import AIOKafkaProducer
+from starlette.requests import Request
 
 import settings
 from core.helpers import is_cert_expired
@@ -43,8 +44,14 @@ def set_actual_status(cert: Certificates) -> bool:
     return cert.status != initial_status
 
 
+def hide_phone(phone: str) -> str:
+    phone = phone.strip()
+    z_ln_phone = len(phone) - 3
+    return '*'*z_ln_phone + (phone or '')[-3:]
+
+
 def hide_cert_sentitive_info(cert: Certificates) -> None:
-    cert.phone = '*********' + (cert.phone or '')[-3:]
+    cert.phone = hide_phone(cert.phone)
     cert.name = cert.name[0] + '******' if cert.name else None
     cert.last_name = cert.last_name[0] + '******' if cert.last_name else None
     cert.transactions = []
@@ -52,6 +59,30 @@ def hide_cert_sentitive_info(cert: Certificates) -> None:
 
 def generate_secure_code(length: int = 4) -> str:
     return ''.join(secrets.choice(ALPHABET) for _ in range(length))
+
+
+def public_base_url(request: Request) -> str:
+    proto = request.headers.get("x-forwarded-proto")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if proto and host:
+        return f"{proto}://{host}".rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
+def get_telegram_text(cert: Certificates, request: Request) -> str:
+    base = public_base_url(request)
+    link = f"{base}/certificates/{cert.id}"
+    return settings.TELEGRAM_TEXT_TEMPLATE.format(
+        cert_code=cert.code,
+        amount=cert.amount,
+        phone=hide_phone(cert.phone),
+        expire_date=(
+            (cert.created_at + timedelta(days=cert.period)).strftime("%Y-%m-%d")
+            if not cert.indefinite
+            else "неограничен"
+        ),
+        link=link,
+    )
 
 
 async def send_certificate_charged_event(
@@ -79,4 +110,25 @@ async def send_certificate_charged_event(
         topic=settings.KAFKA_SMS_TOPIC,
         value=json.dumps(payload).encode('utf-8'),
         key=cert_id.encode('utf-8'),
+    )
+
+
+
+async def send_telegram_msg_event(
+    producer: AIOKafkaProducer,
+    *,
+    chat_id: int,
+    image_url: str,
+    text: str
+):
+    payload = {
+        'chat_id': chat_id,
+        'text': text,
+        'image_url': image_url,
+    }
+
+    await producer.send_and_wait(
+        topic=settings.KAFKA_TELEGRAM_TOPIC,
+        value=json.dumps(payload).encode('utf-8'),
+        key=str(chat_id).encode('utf-8'),
     )

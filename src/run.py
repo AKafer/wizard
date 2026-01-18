@@ -11,4 +11,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     app = create_app()
-    uvicorn.run(app, host='0.0.0.0', port=args.port, log_level=args.log_level)
+    uvicorn.run(
+        app,
+        host='0.0.0.0',
+        port=args.port,
+        log_level=args.log_level,
+        forwarded_allow_ips='*'
+    )

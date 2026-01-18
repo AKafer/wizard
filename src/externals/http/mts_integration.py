@@ -9,7 +9,7 @@ import settings
 from externals.http.base import BaseApiClient, BaseApiClientResponse
 
 logging_config.dictConfig(settings.LOGGING)
-logger = logging.getLogger('wizard')
+logger = logging.getLogger(settings.PROJECT)
 
 
 NOT_FOUND_MSG_ERROR = 'Message ID not found'
