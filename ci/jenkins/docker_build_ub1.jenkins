@@ -29,12 +29,23 @@ pipeline {
                 }
             }
         }
+        stage("update docker frontend image") {
+            steps {
+                echo " ============== start building frontend image =================="
+                timeout(time: 10, unit: 'MINUTES') {
+                    dir ('.') {
+                	    sh 'docker build -t akafer/wizard_frontend -f  ./ci/Dockerfile_frontend .'
+                    }
+                }
+            }
+        }
         stage("docker push") {
             steps {
                 echo " ============== start pushing images =================="
                 timeout(time: 10, unit: 'MINUTES') {
                     sh '''
                     docker push akafer/wizard
+                    docker push akafer/wizard_frontend
                     '''
                 }
             }
@@ -45,6 +56,7 @@ pipeline {
                 dir ('./ci') {
                     sh '''
                     scp docker-compose-prod.yaml root@ub1:/root/app/WIZARD/docker-compose.yaml
+                    scp nginx.conf root@ub1:/root/app/WIZARD/nginx.conf
                     '''
                 }
             }
@@ -52,7 +64,7 @@ pipeline {
         stage("renew server") {
             steps {
                 echo " ============== go to server =================="
-                sh 'ssh root@ub1 "cd /root/app/WIZARD && docker-compose down --remove-orphans && docker pull akafer/wizard  && docker-compose up -d"'
+                sh 'ssh root@ub1 "cd /root/app/WIZARD && docker-compose down --remove-orphans && docker pull akafer/wizard && docker pull akafer/wizard_frontend  && docker-compose up -d"'
             }
         }
     }
