@@ -62,7 +62,7 @@ def generate_secure_code(length: int = 4) -> str:
 
 
 def public_base_url(request: Request) -> str:
-    proto = request.headers.get("x-forwarded-proto")
+    proto = request.headers.get("x-forwarded-proto") or "https"
     host = request.headers.get("x-forwarded-host") or request.headers.get("host")
     if proto and host:
         return f"{proto}://{host}".rstrip("/")

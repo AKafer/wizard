@@ -14,7 +14,7 @@ export const SendTelegramForm = ({ certificate, onClose }) => {
 	  try {
 		const payload = {
 		  chat_id: Number(telegramId),
-		  image_url: "https://storage.yandexcloud.net/files-for-sites/sert.png",
+		  image_url: "https://storage.yandexcloud.net/files-for-sites/sert2.png",
 		};
 
 		const res = await api.post(`/certificates/send_telegram_msg/${certificate.id}`, payload);
