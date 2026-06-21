@@ -67,5 +67,11 @@ pipeline {
                 sh 'ssh root@ub1 "cd /root/app/WIZARD && docker-compose down --remove-orphans && docker pull akafer/wizard && docker pull akafer/wizard_frontend  && docker-compose up -d"'
             }
         }
+        stage("cleanup old docker images") {
+            steps {
+                echo " ============== cleanup old docker images =================="
+                sh '''ssh root@ub1 "docker image prune -a -f --filter 'until=72h'"'''
+            }
+        }
     }
 }
